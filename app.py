@@ -1,70 +1,13 @@
 import random
 import streamlit as st
-
-def get_range_for_difficulty(difficulty: str):
-    if difficulty == "Easy":
-        return 1, 20
-    if difficulty == "Normal":
-        return 1, 100
-    if difficulty == "Hard":
-        # FIXME: Logic breaks here - Hard range is smaller than Normal
-        return 1, 50
-    return 1, 100
+from logic_utils import (
+    get_range_for_difficulty,
+    parse_guess,
+    check_guess,
+    update_score
+)
 
 
-def parse_guess(raw: str):
-    if raw is None:
-        return False, None, "Enter a guess."
-
-    if raw == "":
-        return False, None, "Enter a guess."
-
-    try:
-        if "." in raw:
-            value = int(float(raw))
-        else:
-            value = int(raw)
-    except Exception:
-        return False, None, "That is not a number."
-
-    return True, value, None
-
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        # FIXME: Logic breaks here - higher/lower hints are reversed
-        if guess > secret:
-            return "Too High", "� Go LOWER!"
-        else:
-            return "Too Low", "📈 Go HIGHER!"
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "� Go LOWER!"
-        return "Too Low", "📈 Go HIGHER!"
-
-
-def update_score(current_score: int, outcome: str, attempt_number: int):
-    if outcome == "Win":
-        points = 100 - 10 * (attempt_number + 1)
-        if points < 10:
-            points = 10
-        return current_score + points
-
-    if outcome == "Too High":
-        if attempt_number % 2 == 0:
-            return current_score + 5
-        return current_score - 5
-
-    if outcome == "Too Low":
-        return current_score - 5
-
-    return current_score
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -91,11 +34,27 @@ low, high = get_range_for_difficulty(difficulty)
 st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 
+# FIXED BUG #4: Difficulty change didn't auto-refresh game. Now detects difficulty change and resets all state.
+if "current_difficulty" not in st.session_state:
+    st.session_state.current_difficulty = difficulty
+
+if st.session_state.current_difficulty != difficulty:
+    st.session_state.current_difficulty = difficulty
+    attempt_limit_map = {"Easy": 6, "Normal": 8, "Hard": 5}
+    st.session_state.attempt_limit = attempt_limit_map[difficulty]
+    low, high = get_range_for_difficulty(difficulty)
+    st.session_state.secret = random.randint(low, high)
+    st.session_state.attempts = 0
+    st.session_state.score = 0
+    st.session_state.status = "playing"
+    st.session_state.history = []
+
 if "secret" not in st.session_state:
     st.session_state.secret = random.randint(low, high)
 
+# FIXED BUG #7: Attempts counter was off by 1 (started at 1 instead of 0)
 if "attempts" not in st.session_state:
-    st.session_state.attempts = 1
+    st.session_state.attempts = 0
 
 if "score" not in st.session_state:
     st.session_state.score = 0
@@ -103,15 +62,19 @@ if "score" not in st.session_state:
 if "status" not in st.session_state:
     st.session_state.status = "playing"
 
+# FIXED BUG #6: attempt_limit wasn't initialized in session_state on first load
+if "attempt_limit" not in st.session_state:
+    st.session_state.attempt_limit = attempt_limit
+
 if "history" not in st.session_state:
     st.session_state.history = []
 
 st.subheader("Make a guess")
 
-# FIXME: Logic breaks here - hardcoded range doesn't match difficulty level
+# FIXED BUG #3: Message was hardcoded "1 and 100" instead of using dynamic {low} and {high}
 st.info(
-    f"Guess a number between 1 and 100. "
-    f"Attempts left: {attempt_limit - st.session_state.attempts}"
+    f"Guess a number between {low} and {high}. "
+    f"Attempts left: {st.session_state.attempt_limit - st.session_state.attempts}"
 )
 
 with st.expander("Developer Debug Info"):
@@ -135,11 +98,16 @@ with col3:
     show_hint = st.checkbox("Show hint", value=True)
 
 if new_game:
+    # FIXED BUG #7: Attempts counter was off by 1 (started at 1 instead of 0)
     st.session_state.attempts = 0
-    # FIXME: Logic breaks here - doesn't respect difficulty setting when refresh
-    st.session_state.secret = random.randint(1, 100)
+    st.session_state.secret = random.randint(low, high)
+    st.session_state.score = 0
+    st.session_state.status = "playing"
+    st.session_state.history = []
     st.success("New game started.")
     st.rerun()
+
+
 
 if st.session_state.status != "playing":
     if st.session_state.status == "won":
@@ -180,7 +148,7 @@ if submit:
                 f"Final score: {st.session_state.score}"
             )
         else:
-            if st.session_state.attempts >= attempt_limit:
+            if st.session_state.attempts >= st.session_state.attempt_limit:
                 st.session_state.status = "lost"
                 st.error(
                     f"Out of attempts! "
