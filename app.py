@@ -35,6 +35,7 @@ st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 
 # FIXED BUG #4: Difficulty change didn't auto-refresh game. Now detects difficulty change and resets all state.
+# COLLABORATION: User reported needing manual reload when changing difficulty, AI implemented auto-detection mechanism
 if "current_difficulty" not in st.session_state:
     st.session_state.current_difficulty = difficulty
 
@@ -53,6 +54,7 @@ if "secret" not in st.session_state:
     st.session_state.secret = random.randint(low, high)
 
 # FIXED BUG #7: Attempts counter was off by 1 (started at 1 instead of 0)
+# COLLABORATION: User noticed incorrect attempt count, AI traced root cause and fixed initialization across 3 locations
 if "attempts" not in st.session_state:
     st.session_state.attempts = 0
 
@@ -63,6 +65,7 @@ if "status" not in st.session_state:
     st.session_state.status = "playing"
 
 # FIXED BUG #6: attempt_limit wasn't initialized in session_state on first load
+# COLLABORATION: AI identified KeyError on first page load, user approved adding session state initialization
 if "attempt_limit" not in st.session_state:
     st.session_state.attempt_limit = attempt_limit
 
@@ -72,6 +75,7 @@ if "history" not in st.session_state:
 st.subheader("Make a guess")
 
 # FIXED BUG #3: Message was hardcoded "1 and 100" instead of using dynamic {low} and {high}
+# COLLABORATION: AI discovered hardcoded range conflicted with difficulty settings, user approved using {low} and {high}
 st.info(
     f"Guess a number between {low} and {high}. "
     f"Attempts left: {st.session_state.attempt_limit - st.session_state.attempts}"
@@ -99,6 +103,7 @@ with col3:
 
 if new_game:
     # FIXED BUG #7: Attempts counter was off by 1 (started at 1 instead of 0)
+    # COLLABORATION: User's "New Game" button revealed counter bug, AI standardized reset logic
     st.session_state.attempts = 0
     st.session_state.secret = random.randint(low, high)
     st.session_state.score = 0

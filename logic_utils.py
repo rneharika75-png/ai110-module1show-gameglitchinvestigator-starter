@@ -15,6 +15,7 @@ def parse_guess(raw: str):
 
     Returns: (ok: bool, guess_int: int | None, error_message: str | None)
     """
+    # REFACTORING: Moved from app.py to logic_utils.py with ChatGPT's suggestion to separate logic from UI
     if raw is None or raw == "":
         return False, None, "Enter a guess."
 
@@ -38,6 +39,8 @@ def check_guess(guess, secret):
     if guess == secret:
         return "Win", "🎉 Correct!"
 
+    # FIXED BUG #2: Hints were reversed ("Go HIGHER" when guess too high, now correct)
+    # COLLABORATION: User reported reversed hints in game feedback, AI debugged logic and swapped messages
     if guess > secret:
         return "Too High", "📉 Go LOWER!"
     else:
